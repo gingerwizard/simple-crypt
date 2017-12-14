@@ -25,7 +25,7 @@ for header in HEADER:
     assert len(header) == HEADER_LEN
 
 
-def encrypt(password, data):
+def encrypt(password, data, expansion_count=None):
     '''
     Encrypt some data.  Input can be bytes or a string (which will be encoded
     using UTF-8).
@@ -40,7 +40,8 @@ def encrypt(password, data):
     data = _str_to_bytes(data)
     _assert_encrypt_length(data)
     salt = bytes(_random_bytes(SALT_LEN[LATEST]//8))
-    hmac_key, cipher_key = _expand_keys(password, salt, EXPANSION_COUNT[LATEST])
+    expansion_count = expansion_count if expansion_count > 1 else EXPANSION_COUNT[LATEST]
+    hmac_key, cipher_key = _expand_keys(password, salt, expansion_count)
     counter = Counter.new(HALF_BLOCK, prefix=salt[:HALF_BLOCK//8])
     cipher = AES.new(cipher_key, AES.MODE_CTR, counter=counter)
     encrypted = cipher.encrypt(data)
@@ -48,7 +49,7 @@ def encrypt(password, data):
     return HEADER[LATEST] + salt + encrypted + hmac
 
 
-def decrypt(password, data):
+def decrypt(password, data,expansion_count=None):
     '''
     Decrypt some data.  Input must be bytes.
 
@@ -66,7 +67,8 @@ def decrypt(password, data):
     _assert_decrypt_length(data, version)
     raw = data[HEADER_LEN:]
     salt = raw[:SALT_LEN[version]//8]
-    hmac_key, cipher_key = _expand_keys(password, salt, EXPANSION_COUNT[version])
+    expansion_count = expansion_count if expansion_count > 1 else EXPANSION_COUNT[LATEST]
+    hmac_key, cipher_key = _expand_keys(password, salt, expansion_count)
     hmac = raw[-HASH.digest_size:]
     hmac2 = _hmac(hmac_key, data[:-HASH.digest_size])
     _assert_hmac(hmac_key, hmac, hmac2)
